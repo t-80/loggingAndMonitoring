@@ -6,14 +6,6 @@ import com.course.bff.authors.responses.AuthorResponse;
 import com.course.bff.authors.services.AuthorService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.Dsl;
-import org.asynchttpclient.ListenableFuture;
-import org.asynchttpclient.Request;
-import org.asynchttpclient.RequestBuilder;
-import org.asynchttpclient.Response;
-import org.asynchttpclient.util.HttpConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,7 +22,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("api/v1/authors")
@@ -50,7 +41,7 @@ public class AuthorController {
 
     @GetMapping()
     public Collection<AuthorResponse> getAuthors() {
-        logger.info("Get authors");
+        logger.info("Get authors!!!");
         List<AuthorResponse> authorResponses = new ArrayList<>();
         this.authorService.getAuthors().forEach(author -> {
             AuthorResponse authorResponse = createAuthorResponse(author);
