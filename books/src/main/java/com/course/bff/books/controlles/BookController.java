@@ -6,14 +6,6 @@ import com.course.bff.books.responses.BookResponse;
 import com.course.bff.books.services.BookService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.Dsl;
-import org.asynchttpclient.ListenableFuture;
-import org.asynchttpclient.Request;
-import org.asynchttpclient.RequestBuilder;
-import org.asynchttpclient.Response;
-import org.asynchttpclient.util.HttpConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,7 +22,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("api/v1/books")
@@ -49,14 +40,16 @@ public class BookController {
     }
 
     @GetMapping()
-    public Collection<BookResponse> getBooks() {
+    public Collection<BookResponse> getBooks() throws Exception {
         logger.info("Get book list");
         List<BookResponse> bookResponses = new ArrayList<>();
+//        Thread.sleep(10000);
+
         this.bookService.getBooks().forEach(book -> {
             BookResponse bookResponse = createBookResponse(book);
             bookResponses.add(bookResponse);
         });
-
+//        throw new Exception();
         return bookResponses;
     }
 

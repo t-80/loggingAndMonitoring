@@ -51,10 +51,6 @@ services:
     container_name: bff-zipkin-service
     ports:
       - 9411:9411
-#    image: oharkusha/bff-zipkin-service:1.0
-#    container_name: bff-zipkin-service
-#    ports:
-#      - 9411:9411
     networks:
       - mynet
 networks:
