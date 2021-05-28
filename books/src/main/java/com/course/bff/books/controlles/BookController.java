@@ -4,12 +4,9 @@ import com.course.bff.books.models.Book;
 import com.course.bff.books.requests.CreateBookCommand;
 import com.course.bff.books.responses.BookResponse;
 import com.course.bff.books.services.BookService;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.course.bff.books.services.RedisService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,14 +26,11 @@ public class BookController {
 
     private final static Logger logger = LoggerFactory.getLogger(BookController.class);
     private final BookService bookService;
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisService redisService;
 
-    @Value("${redis.topic}")
-    private String redisTopic;
-
-    public BookController(BookService bookService, RedisTemplate<String, Object> redisTemplate) {
+    public BookController(BookService bookService, RedisService redisService) {
         this.bookService = bookService;
-        this.redisTemplate = redisTemplate;
+        this.redisService = redisService;
     }
 
     @GetMapping()
@@ -61,7 +55,6 @@ public class BookController {
             throw new RuntimeException("Book isn't found");
         }
 
-
         return createBookResponse(bookSearch.get());
     }
 
@@ -70,17 +63,8 @@ public class BookController {
         logger.info("Create books");
         Book book = this.bookService.create(createBookCommand);
         BookResponse authorResponse = createBookResponse(book);
-        this.sendPushNotification(authorResponse);
+        redisService.sendPushNotification(authorResponse);
         return authorResponse;
-    }
-
-    private void sendPushNotification(BookResponse bookResponse) {
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        try {
-            redisTemplate.convertAndSend(redisTopic, gson.toJson(bookResponse));
-        } catch (Exception e) {
-            logger.error("Push Notification Error", e);
-        }
     }
 
     private BookResponse createBookResponse(Book book) {
