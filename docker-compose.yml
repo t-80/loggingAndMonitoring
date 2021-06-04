@@ -61,27 +61,34 @@ services:
       - mynet
 
   elasticsearch:
-    image: "docker.elastic.co/elasticsearch/elasticsearch:7.2.0"
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.1
     environment:
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - "discovery.type=single-node"
     ports:
-      - "9200:9200"
+      - 9200:9200
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - mynet
 
   kibana:
-    image: "docker.elastic.co/kibana/kibana:7.2.0"
+    image: docker.elastic.co/kibana/kibana:7.12.1
     ports:
-      - "5601:5601"
+      - 5601:5601
+    networks:
+      - mynet
 
   filebeat:
-    image: "docker.elastic.co/beats/filebeat:7.2.0"
+    image: docker.elastic.co/beats/filebeat:7.12.1
     user: root
     volumes:
       - /Users/oharkusha/Documents/workdir/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /var/run/docker.sock:/var/run/docker.sock
+      - /Users/oharkusha/Documents/workdir/logs:/usr/share/filebeat/logs:ro
+    networks:
+      - mynet
 
 volumes:
   elasticsearch_data:
