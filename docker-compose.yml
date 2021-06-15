@@ -5,6 +5,8 @@ services:
     container_name: bff-authors-service
     ports:
       - 8081:8081
+    volumes:
+      - /Users/oharkusha/Documents/workdir/logs:/tmp/logs
     networks:
       - mynet
     depends_on:
@@ -15,6 +17,8 @@ services:
     container_name: bff-books-service
     ports:
       - 8082:8082
+    volumes:
+      - /Users/oharkusha/Documents/workdir/logs:/tmp/logs
     networks:
       - mynet
     depends_on:
@@ -25,6 +29,8 @@ services:
     container_name: bff-web-sockets-service
     ports:
       - 8083:8083
+    volumes:
+      - /Users/oharkusha/Documents/workdir/logs:/tmp/logs
     networks:
       - mynet
   redis:
@@ -53,5 +59,38 @@ services:
       - 9411:9411
     networks:
       - mynet
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.12.1
+    environment:
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - "discovery.type=single-node"
+    ports:
+      - 9200:9200
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - mynet
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.12.1
+    ports:
+      - 5601:5601
+    networks:
+      - mynet
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:7.12.1
+    user: root
+    volumes:
+      - /Users/oharkusha/Documents/workdir/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /Users/oharkusha/Documents/workdir/logs:/usr/share/filebeat/logs:ro
+    networks:
+      - mynet
+
+volumes:
+  elasticsearch_data:
 networks:
   mynet:
