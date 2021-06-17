@@ -6,6 +6,9 @@ import com.course.bff.authors.responses.AuthorResponse;
 import com.course.bff.authors.services.AuthorService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,22 +36,30 @@ public class AuthorController {
     private final static Logger logger = LoggerFactory.getLogger(AuthorController.class);
     private final AuthorService authorService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final MeterRegistry meterRegistry;
+    private Counter requestCounter;
+    private Counter errorCounter;
+    private Timer executionTimer;
 
-    public AuthorController(AuthorService authorService, RedisTemplate<String, Object> redisTemplate) {
+    public AuthorController(AuthorService authorService, RedisTemplate<String, Object> redisTemplate, MeterRegistry registry) {
         this.authorService = authorService;
         this.redisTemplate = redisTemplate;
+        this.meterRegistry = registry;
+        initMetrics();
     }
 
     @GetMapping()
-    public Collection<AuthorResponse> getAuthors() {
-        logger.info("Get authors!!!");
-        List<AuthorResponse> authorResponses = new ArrayList<>();
-        this.authorService.getAuthors().forEach(author -> {
-            AuthorResponse authorResponse = createAuthorResponse(author);
-            authorResponses.add(authorResponse);
+    public Collection<AuthorResponse> getAuthors() throws Exception{
+        return executionTimer.recordCallable(() -> {
+            logger.info("Get authors!!!");
+            List<AuthorResponse> authorResponses = new ArrayList<>();
+            this.authorService.getAuthors().forEach(author -> {
+                AuthorResponse authorResponse = createAuthorResponse(author);
+                authorResponses.add(authorResponse);
+            });
+            requestCounter.increment();
+            return authorResponses;
         });
-
-        return authorResponses;
     }
 
     @GetMapping("/{id}")
@@ -56,9 +67,10 @@ public class AuthorController {
         logger.info(String.format("Find authors by %s", id));
         Optional<Author> authorSearch = this.authorService.findById(id);
         if (authorSearch.isEmpty()) {
+            errorCounter.increment();
             throw new RuntimeException("Author isn't found");
         }
-
+        requestCounter.increment();
         return createAuthorResponse(authorSearch.get());
     }
 
@@ -68,6 +80,7 @@ public class AuthorController {
         Author author = this.authorService.create(createAuthorCommand);
         AuthorResponse authorResponse = createAuthorResponse(author);
         this.sendPushNotification(authorResponse);
+        requestCounter.increment();
         return authorResponse;
     }
 
@@ -89,5 +102,17 @@ public class AuthorController {
         authorResponse.setAddress(author.getAddress());
         authorResponse.setLanguage(author.getLanguage());
         return authorResponse;
+    }
+
+    private void initMetrics() {
+        requestCounter = meterRegistry.counter("request_count",
+                "ControllerName", this.getClass().getSimpleName(),
+                "ServiceName", authorService.getClass().getSimpleName());
+        errorCounter = meterRegistry.counter("error_count",
+                "ControllerName", this.getClass().getSimpleName(),
+                "ServiceName", authorService.getClass().getSimpleName());
+        executionTimer = meterRegistry.timer("execution_duration",
+                "ControllerName", this.getClass().getSimpleName(),
+                "ServiceName", authorService.getClass().getSimpleName());
     }
 }

@@ -5,6 +5,9 @@ import com.course.bff.books.requests.CreateBookCommand;
 import com.course.bff.books.responses.BookResponse;
 import com.course.bff.books.services.BookService;
 import com.course.bff.books.services.RedisService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,24 +30,32 @@ public class BookController {
     private final static Logger logger = LoggerFactory.getLogger(BookController.class);
     private final BookService bookService;
     private final RedisService redisService;
+    private final MeterRegistry meterRegistry;
+    private Counter requestCounter;
+    private Counter errorCounter;
+    private Timer executionTimer;
 
-    public BookController(BookService bookService, RedisService redisService) {
+    public BookController(BookService bookService, RedisService redisService, MeterRegistry registry) {
         this.bookService = bookService;
         this.redisService = redisService;
+        this.meterRegistry = registry;
+        initMetrics();
     }
+
 
     @GetMapping()
     public Collection<BookResponse> getBooks() throws Exception {
-        logger.info("Get book list");
-        List<BookResponse> bookResponses = new ArrayList<>();
-//        Thread.sleep(10000);
+        return executionTimer.recordCallable(() -> {
+            logger.info("Get book list");
+            List<BookResponse> bookResponses = new ArrayList<>();
 
-        this.bookService.getBooks().forEach(book -> {
-            BookResponse bookResponse = createBookResponse(book);
-            bookResponses.add(bookResponse);
+            this.bookService.getBooks().forEach(book -> {
+                BookResponse bookResponse = createBookResponse(book);
+                bookResponses.add(bookResponse);
+            });
+            requestCounter.increment();
+            return bookResponses;
         });
-//        throw new Exception();
-        return bookResponses;
     }
 
     @GetMapping("/{id}")
@@ -52,9 +63,11 @@ public class BookController {
         logger.info(String.format("Find book by id %s", id));
         Optional<Book> bookSearch = this.bookService.findById(id);
         if (bookSearch.isEmpty()) {
+            errorCounter.increment();
             throw new RuntimeException("Book isn't found");
         }
 
+        requestCounter.increment();
         return createBookResponse(bookSearch.get());
     }
 
@@ -64,6 +77,7 @@ public class BookController {
         Book book = this.bookService.create(createBookCommand);
         BookResponse authorResponse = createBookResponse(book);
         redisService.sendPushNotification(authorResponse);
+        requestCounter.increment();
         return authorResponse;
     }
 
@@ -74,5 +88,17 @@ public class BookController {
         bookResponse.setPages(book.getPages());
         bookResponse.setTitle(book.getTitle());
         return bookResponse;
+    }
+
+    private void initMetrics() {
+        requestCounter = meterRegistry.counter("request_count",
+                "ControllerName", this.getClass().getSimpleName(),
+                "ServiceName", bookService.getClass().getSimpleName());
+        errorCounter = meterRegistry.counter("error_count",
+                "ControllerName", this.getClass().getSimpleName(),
+                "ServiceName", bookService.getClass().getSimpleName());
+        executionTimer = meterRegistry.timer("execution_duration",
+                "ControllerName", this.getClass().getSimpleName(),
+                "ServiceName", bookService.getClass().getSimpleName());
     }
 }
